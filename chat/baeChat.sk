@@ -14,6 +14,10 @@ options:
 	privateConversationPermission: baechat.conversation.allow
 	# Permission checks for creating channels
 	channelCreatePermission: baechat.channel.create
+	# Must have this permission to delete a channel
+	channelDeletePermission: baechat.channel.delete
+	# Required permission to update a channel
+	channelUpdatePermission: baechat.channel.update
 	# Admin permission to run player info and clear chat command
 	adminPermission: baechat.admin
 	
@@ -240,6 +244,13 @@ function baeChat_leaveChannel(p: player, channel: text):
 	delete {bchat::player::%{_u}%::in-channels::%{_channel}%}
 	send "{@W} You left the channel %{_channel}%" to {_p}
 	baeChat_movePlayer({_p}, "general")
+
+function baeChat_inChannel(p: player, channel: string) :: boolean:
+	set {_u} to uuid of {_p}
+	if {bchat::player::%{_u}%::in-channels::%{_channel}%} is set:
+		return true
+	else:
+		return false
 
 function baeChat_channelExists(channel: text) :: boolean:
 	if {bchat::channels::%{_channel}%::name} is set:
@@ -566,8 +577,8 @@ command /chat [<text>] [<text>] [<text>]:
 				message "{@P} /chat..."
 				if player has permission "{@channelCreatePermission}":
 					message "{@P}"
-					message "{@P}         channel <create|update> <channel>"
-					message "{@P} - create or update a channel"
+					message "{@P}         channel <create|update|delete> <channel>"
+					message "{@P} - create, update or delete a channel"
 					message "{@P}"
 					message "{@P}         channels refresh"
 					message "{@P} - refreshes any default channels (general, group chat...)"
@@ -678,14 +689,34 @@ command /chat [<text>] [<text>] [<text>]:
 				else:
 					message "{@P} You don't have permission to access that command set"
 			else if arg 2 is "update":
-				message "{@P} Lets update %arg 3%..."
-				message "{@P} As a normal chat message, say what permission you'd like the channel to run on"
-				message "{@P} Use ""none"" for no permission required"
-				message "{@P} Or use ""same"" for what's already set"
-				set {bchat::player::%uuid of player%::channel-creation::channel} to arg 3
-				set {bchat::player::%uuid of player%::channel-creation::stage} to "permission"
+				if player has permission "{@channelUpdatePermission}":
+					message "{@P} Lets update %arg 3%..."
+					message "{@P} As a normal chat message, say what permission you'd like the channel to run on"
+					message "{@P} Use ""none"" for no permission required"
+					message "{@P} Or use ""same"" for what's already set"
+					set {bchat::player::%uuid of player%::channel-creation::channel} to arg 3
+					set {bchat::player::%uuid of player%::channel-creation::stage} to "permission"
+				else:
+					message "{@P} You don't have permission to access that command set"
+			else if arg 2 is "delete":
+				if player has permission "{@channelDeletePermission}":
+					if {bchat::defaultChannels::%arg 3%} is set:
+						message "{@W} Default channels cannot be deleted"
+						stop
+					message "{@P} Woah! Are you sure you want to do that? Deleting %arg 3% cannot be undone."
+					message "{@P} If you're completely sure, please now type the channel name in chat to confirm deletion"
+					message "{@P} You have 10 seconds to do this."
+					set {bchat::player::%uuid of player%::channel-creation::stage} to "delete-channel"
+					set {bchat::player::%uuid of player%::channel-creation::delete::channel} to arg 3
+					set {bchat::player::%uuid of player%::channel-creation::delete::time} to now
+					wait 10 seconds
+					if {bchat::channels::%arg 3%::name} is set:
+						message "{@W} Channel deletion canceled"
+					delete {bchat::player::%uuid of player%::channel-creation::*}
+				else:
+					message "{@W} You don't have permission to access that command set"
 			else:
-				message "{@P} That's not right... try a different sub-command"
+				message "{@W} That's not right... try a different sub-command"
 		else if arg 1 is "channels":
 			if arg 2 is "refresh":
 				loop {bchat::defaultChannels::*}:
@@ -699,7 +730,13 @@ command /chat [<text>] [<text>] [<text>]:
 			else if baeChat_activeChannel(player) is arg 2:
 				baeChat_leaveChannel(player, arg 2)
 			else:
-				message "{@P} Sorry! That sub-command or channel isn't recongised"
+				message "{@W} Sorry! That sub-command or channel isn't recongised"
+		else if arg 1 is "clear":
+			if player has permission "{@clearChatPermission}":
+				message "{@P} Clearing chat..."
+				baeChat_clearChat(player)
+			else:
+				message "{@W} You don't have permission to access that command set"
 		else if {bchat::channels::%arg 1%::name} is set:
 			set {_channel} to arg 1
 			if arg 2 is set:
@@ -845,8 +882,8 @@ on chat:
 		if {bchat::player::%uuid of player%::channel-creation::stage} is "permission":
 			if message is "same":
 				if {bchat::channels::%{_channel}%::permission} is not set:
-					message "{@P} There is no permission currently set for %{_channel}%. Please enter a permission"
-					message "{@P} You can use ""none"" for no permission required"
+					message "{@W} There is no permission currently set for %{_channel}%. Please enter a permission"
+					message "{@W} You can use ""none"" for no permission required"
 					stop
 			else:
 				set {bchat::channels::%{_channel}%::permission} to message
@@ -865,26 +902,41 @@ on chat:
 			set {_msg} to baeChat_parser(player, "this is just an example message")
 			message "%{_msg}%"
 			baeChat_movePlayer(player, {_last_active})
-			delete {bchat::player::%uuid of player%::channel-creation::channel}
-			delete {bchat::player::%uuid of player%::channel-creation::stage}
+			delete {bchat::player::%uuid of player%::channel-creation::*}
+		else if {bchat::player::%uuid of player%::channel-creation::stage} is "delete-channel":
+			if {bchat::player::%uuid of player%::channel-creation::delete::channel} is set:
+				if message is {_channel}:
+					delete {bchat::channels::%{_channel}%::*}
+					message "{@P} %{_channel}% has been deleted"
+					loop all players:
+						if {bchat::player::%uuid of loop-player%::in-channels::%{_channel}%} is set:
+							delete {bchat::player::%uuid of loop-player%::in-channels::%{_channel}%}
+							if baeChat_activeChannel(loop-player) is {_channel}:
+								baeChat_leaveChannel(loop-player, {_channel})
+					delete {bchat::player::%uuid of player%::channel-creation::*}
+				else:
+					message "{@W} Message provided doesn't match the channel name"
+			else:
+				message "{@W} Something wen't wrong. Please run the deletion command again"
+				delete {bchat::player::%uuid of player%::channel-creation::*}
 		else:
 			delete {bchat::player::%uuid of player%::channel-creation::channel}
 			delete {bchat::player::%uuid of player%::channel-creation::stage}
-			message "{@P} That stage of channel creation isn't recongised... the variables have been unset. Please try again!"
+			message "{@W} That stage of channel creation isn't recongised... the variables have been unset. Please try again!"
 		stop
 	# [2] Private messaging via @
 	if message is "@@":
 		if {bchat::conversations::%uuid of player%::lastrecievedplayer} is set:
 			baeChat_startConversation(player, {bchat::conversations::%uuid of player%::lastrecievedplayer})
 		else:
-			message "{@P} You haven't recieved any messages to start a conversation"
+			message "{@W} You haven't recieved any messages to start a conversation"
 		stop
 	set {_checkAt} to first character of message
 	if {_checkAt} is "@":
 		set {_doubleAt} to subtext of message from 1 to 2
 		if {_doubleAt} is "@@":
 			if {bchat::conversations::%uuid of player%::lastrecievedplayer} is not set:
-				message "{@P} You haven't recieved any messages to start a conversation"
+				message "{@W} You haven't recieved any messages to start a conversation"
 				stop
 
 			set {_allSplit::*} to message split at " "
