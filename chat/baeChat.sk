@@ -1,0 +1,952 @@
+#
+#	baeChat.sk
+#	Designed and created by BaeFell
+#	Copyright (C) 2018
+#
+
+options:
+	P: &c&lbaeChat &7»&e
+	W: &c&lbaeChat &7»&c
+
+	# The default permission to access the main /chat command
+	defaultCommandPermission: baechat.command.use
+	# If players have this permission, then they can start a private conversation with other players
+	privateConversationPermission: baechat.conversation.allow
+	# Permission checks for creating channels
+	channelCreatePermission: baechat.channel.create
+	# Admin permission to run player info and clear chat command
+	adminPermission: baechat.admin
+	
+	# This is the layout for the general chat. This channel is that everyone is in
+	defaultChatLayout: &7[<<player>>]: &f<<message>>
+	# The layout below is for group chats
+	defaultGroupChatLayout: &a» <<player>>: <<message>>
+
+	# Both layouts below support the normal parsing keywords
+	# How it looks to the sender/reciever when they send a conversation message
+	senderToRecieverConversation: &d[<<player>>] » [<<reciever>>]: <<message>>
+
+	# How many blank messages would you like to send? 30 is a fairly decent amount
+	clearChatTimes: 30
+	# Would you like a message in chat to be sent after the chat is cleared?
+	sendClearChatMessage: true
+	# What's the message?
+	clearChatMessage: &c&l<<player>> &6has cleared the chat!
+	# The permission required to clear the chat:
+	clearChatPermission: baechat.chat.clear
+
+function baeChat_createDefaultChannels(unused: string = none):
+	if {bchat::channels::general::name} is not set:
+		set {bchat::channels::general::name} to "general"
+	if {bchat::channels::general::creator} is not set:
+		set {bchat::channels::general::creator} to "baeChat - auto generated channel"
+	if {bchat::channels::general::createdAt} is not set:
+		set {bchat::channels::general::createdAt} to now
+	if {bchat::channels::general::permission} is not set:
+		set {bchat::channels::general::permission} to "none"
+	if {bchat::channels::general::layout} is not set:
+		set {bchat::channels::general::layout} to "{@defaultChatLayout}"
+
+	if {bchat::channels::group::name} is not set:
+		set {bchat::channels::group::name} to "group"
+	if {bchat::channels::group::creator} is not set:
+		set {bchat::channels::group::creator} to "baeChat - auto generated channel"
+	if {bchat::channels::group::createdAt} is not set:
+		set {bchat::channels::group::createdAt} to now
+	if {bchat::channels::group::permission} is not set:
+		set {bchat::channels::group::permission} to "none"
+	if {bchat::channels::group::layout} is not set:
+		set {bchat::channels::group::layout} to "{@defaultGroupChatLayout}"
+
+	set {bchat::defaultChannels::general} to "general"
+	set {bchat::defaultChannels::group} to "group"
+
+function baeChat_setupAPI(unused: string = none):
+	delete {bchat::api::*}
+	# baeChat_registerEventListener(event, command, script)
+	#							the event to listen too 											name of the script for organisation
+	#													command ran as console 								just putting 'script' works too
+	# baeChat_registerEventListener("chat", "baechat_console <<event>> <<sender>> <<reciever>> <<message>>", "baeChat")
+	set {bchat::api::events::chat-presend} to "chat-send"
+	set {bchat::api::events::chat-send} to "chat-send"
+	set {bchat::api::events::conversation-start} to "conversation-start"
+	set {bchat::api::events::conversation-send} to "conversation-send"
+	set {bchat::api::events::conversation-end} to "conversation-end"
+	set {bchat::api::events::group-create} to "group-create"
+	set {bchat::api::events::group-join} to "group-join"
+	set {bchat::api::events::group-presend} to "group-presend"
+	set {bchat::api::events::group-send} to "group-send"
+	set {bchat::api::events::group-leave} to "group-leave"
+	set {bchat::api::events::group-prekick} to "group-prekick"
+	set {bchat::api::events::group-kick} to "group-kick"
+	set {bchat::api::events::group-disband} to "group-disband"
+	set {bchat::api::events::clearchat-ran} to "clearchat-ran"
+
+function baeChat_APICommandPrepare(code: string) :: string:
+	loop {bchat::temp::%{_code}%::*}:
+		set {_data::%loop-index%} to loop-value
+	if {_data::command} is set:
+		set {_command} to {_data::command}
+		loop {_data::*}:
+			replace all "<<%loop-index%>>" in {_command} with "%loop-value%"
+		return {_command}
+	else:
+		loop {_data::*}:
+			broadcast "%loop-index% -> %loop-value%"
+		return ""
+
+function baeChat_generateRandomString(length: integer = 6) :: string:
+	set {_code} to ""
+	loop {_length} times:
+		set {_type} to a rounded random integer between 1 and 10
+		if {_type} is equal to 1 or 3 or 5 or 7 or 9:
+			set {_rand} to a rounded random integer between 27 and {cga.max}
+			set {_char} to {bchat::randomstring::list::%{_rand}%}
+		else:
+			set {_rand} to a rounded random integer between 1 and 26
+			set {_char} to {bchat::randomstring::list::%{_rand}%}
+		set {_code} to "%{_code}%%{_char}%"
+	return {_code}
+
+function baeChat_prepareRandomStringLetters(unused: string = none):
+	delete {bchat::randomstring::list::*}
+	add "a" to {bchat::randomstring::list::*}
+	add "b" to {bchat::randomstring::list::*}
+	add "c" to {bchat::randomstring::list::*}
+	add "d" to {bchat::randomstring::list::*}
+	add "e" to {bchat::randomstring::list::*}
+	add "f" to {bchat::randomstring::list::*}
+	add "g" to {bchat::randomstring::list::*}
+	add "h" to {bchat::randomstring::list::*}
+	add "i" to {bchat::randomstring::list::*}
+	add "j" to {bchat::randomstring::list::*}
+	add "k" to {bchat::randomstring::list::*}
+	add "l" to {bchat::randomstring::list::*}
+	add "m" to {bchat::randomstring::list::*}
+	add "n" to {bchat::randomstring::list::*}
+	add "o" to {bchat::randomstring::list::*}
+	add "p" to {bchat::randomstring::list::*}
+	add "q" to {bchat::randomstring::list::*}
+	add "r" to {bchat::randomstring::list::*}
+	add "s" to {bchat::randomstring::list::*}
+	add "t" to {bchat::randomstring::list::*}
+	add "u" to {bchat::randomstring::list::*}
+	add "v" to {bchat::randomstring::list::*}
+	add "w" to {bchat::randomstring::list::*}
+	add "x" to {bchat::randomstring::list::*}
+	add "y" to {bchat::randomstring::list::*}
+	add "z" to {bchat::randomstring::list::*}
+	add "1" to {bchat::randomstring::list::*}
+	add "2" to {bchat::randomstring::list::*}
+	add "3" to {bchat::randomstring::list::*}
+	add "4" to {bchat::randomstring::list::*}
+	add "5" to {bchat::randomstring::list::*}
+	add "6" to {bchat::randomstring::list::*}
+	add "7" to {bchat::randomstring::list::*}
+	add "8" to {bchat::randomstring::list::*}
+	add "9" to {bchat::randomstring::list::*}
+
+function baeChat_executeEvent(event: string, code: string) :: boolean:
+	if {bchat::api::events::%{_event}%} is set:
+		loop {bchat::api::listeners::%{_event}%::*}:
+			set {bchat::temp::%{_code}%::cancel} to false
+			set {bchat::temp::%{_code}%::command} to loop-value
+			set {_cmd} to baeChat_APICommandPrepare({_code})
+			execute console command "%{_cmd}%"
+			set {_cancel} to {bchat::temp::%{_code}%::cancel}
+			delete {bchat::temp::%{_code}%::*}
+			if {_cancel} is true:
+				return true
+	return false
+
+
+function baeChat_registerEventListener(event: string, command: string):
+	if {bchat::api::events::%{_event}%} is set:
+		add {_command} to {bchat::api::listeners::%{_event}%::*}
+		#set {bchat::api::data::%{_script}%::events::%{_event}%} to {_event}
+		#add {_command} to {bchat::api::data::%{_script}%::commands::%{_event}%::*}
+
+on script load:
+	# these channel names are restricted because they're used as arguments in the main command
+	# and creating a channel named this would not work... so it's just for ease of use
+	set {bchat::settings::restricted::channels::channel} to "channel"
+	set {bchat::settings::restricted::channels::all} to "all"
+
+	baeChat_createDefaultChannels()
+	baeChat_setupAPI()
+	baeChat_prepareRandomStringLetters()
+
+on join:
+	if {bchat::player::%uuid of player%::active-channel} is not set:
+		set {bchat::player::%uuid of player%::active-channel} to "general"
+	if size of {bchat::player::%uuid of player%::in-channels::*} is 0:
+		set {bchat::player::%uuid of player%::in-channels::general} to "general"
+
+function baeChat_canSendConversation(conversation_starter: player, conversation_reciever: player) :: boolean:
+	set {_csu} to uuid of {_conversation_starter}
+	set {_cru} to uuid of {_conversation_reciever}
+	if {bchat::player::%{_csu}%::blocklist::%{_cru}%} is set:
+		return false
+	if {bchat::player::%{_cru}%::blocklist::%{_csu}%} is set:
+		return false
+	if {bchat::player::%{_csu}%::chatstatus} is "disabled":
+		return false
+	if {bchat::player::%{_cru}%::chatstatus} is "disabled":
+		return false
+	return true
+
+function baeChat_sendMessage(messageFrom: player, messageTo: player, message: string):
+	if baeChat_canSendConversation({_messageFrom}, {_messageTo}) is false:
+		stop
+	send "%{_message}%" to {_messageTo}
+
+function baeChat_parser(p: player, message: text, forcedLayout: string = none) :: string:
+	set {_u} to uuid of {_p}
+	if {_forcedLayout} is "none":
+		set {_channel} to {bchat::player::%{_u}%::active-channel}
+		set {_replaceAble} to {bchat::channels::%{_channel}%::layout}
+	else:
+		set {_replaceAble} to {_forcedLayout}
+
+
+	replace all "<<player>>" in {_replaceAble} with "%{_p}%"
+	replace all "<<message>>" in {_replaceAble} with "%{_message}%"
+	replace all "<<channel>>" in {_replaceAble} with "%{_channel}%"
+	return {_replaceAble}
+
+function baeChat_movePlayer(p: player, new_channel: text):
+	if {bchat::channels::%{_new_channel}%::name} is set:
+		set {_u} to uuid of {_p}
+		set {bchat::player::%{_u}%::active-channel} to {_new_channel}
+		set {bchat::player::%{_u}%::in-channels::%{_new_channel}%} to {_new_channel}
+		send "{@W} You've been moved to %{_new_channel}%!" to {_p}
+
+function baeChat_activeChannel(p: player, possible_channel: text = "channel") :: string:
+	set {_u} to uuid of {_p}
+	if {_possible_channel} is "channel":
+		return {bchat::player::%{_u}%::active-channel}
+	else:
+		baeChat_movePlayer({_p}, {_possible_channel})
+		return {bchat::player::%{_u}%::active-channel}
+
+function baeChat_leaveAllChannels(p: player):
+	set {_u} to uuid of {_p}
+	delete {bchat::player::%{_u}%::in-channels::*}
+	send "{@W} You left all the channels you were in" to {_p}
+	baeChat_movePlayer({_p}, "general")
+
+function baeChat_leaveChannel(p: player, channel: text):
+	set {_u} to uuid of {_p}
+	delete {bchat::player::%{_u}%::in-channels::%{_channel}%}
+	send "{@W} You left the channel %{_channel}%" to {_p}
+	baeChat_movePlayer({_p}, "general")
+
+function baeChat_channelExists(channel: text) :: boolean:
+	if {bchat::channels::%{_channel}%::name} is set:
+		return true
+	else:
+		return false
+
+function baeChat_startConversation(conversation_starter: player, conversation_reciever: player):
+	if {_conversation_starter} doesn't have permission "{@privateConversationPermission}":
+		send "{@W} You don't have permission to start a conversation" to {_conversation_starter}
+		stop
+	if {_conversation_starter} is {_conversation_reciever}:
+		message "{@P} You can't start a conversation with yourself!" to {_conversation_starter}
+		stop
+	if baeChat_canSendConversation({_conversation_starter}, {_conversation_reciever}) is false:
+		message "{@P} You can't start a conversation with %{_conversation_reciever}%. They might have conversations disabled" to {_conversation_starter}
+		stop
+	set {_code} to baeChat_generateRandomString()
+	set {bchat::temp::%{_code}%::player} to {_conversation_starter}
+	set {bchat::temp::%{_code}%::reciever} to {_conversation_reciever}
+	set {_cancel} to baeChat_executeEvent("conversation-start", {_code})
+	if {_cancel} is true:
+		stop
+	#set {_cru} to uuid of {_conversation_reciever}
+	set {bchat::conversations::%{_csu}%::to} to {_conversation_reciever}
+	#set {bchat::conversations::%{_cru}%} to {_conversation_reciever}
+	send "{@P} You're now chatting with %{_conversation_reciever}%" to {_conversation_starter}
+
+function baeChat_inConversation(p: player) :: boolean:
+	set {_csu} to uuid of {_p}
+	if {bchat::conversations::%{_csu}%::to} is set:
+		return true
+	else:
+		return false
+
+function baeChat_sendConversationMessage(conversation_starter: player, message: string, conversation_reciever: object = none):
+	if {_conversation_starter} doesn't have permission "{@privateConversationPermission}":
+		send "{@W} You don't have permission to start a conversation" to {_conversation_starter}
+		stop
+	if baeChat_canSendConversation({_conversation_starter}, {_conversation_reciever}) is false:
+		message "{@P} You can't start a conversation with %{_conversation_reciever}%. They might have conversations disabled" to {_conversation_starter}
+		stop
+	set {_u} to uuid of {_conversation_starter}
+	if {_conversation_reciever} is air:
+		if baeChat_inConversation({_conversation_starter}) is true:
+			set {_conversation_reciever} to {bchat::conversations::%{_u}%::to}
+		else:
+			send "{@W} You must put someone to send a message to" to {_conversation_starter}
+			stop
+	set {_msg} to {_message}
+
+	set {_layout} to "{@senderToRecieverConversation}"
+	replace all "<<reciever>>" in {_layout} with "%{_conversation_reciever}%"
+	set {_message} to baeChat_parser({_conversation_starter}, {_message}, {_layout})
+
+	set {_code} to baeChat_generateRandomString()
+	set {bchat::temp::%{_code}%::player} to {_conversation_starter}
+	set {bchat::temp::%{_code}%::reciever} to {_conversation_reciever}
+	set {bchat::temp::%{_code}%::message} to {_msg}
+	set {bchat::temp::%{_code}%::parsedmessage} to {_message}
+	set {_cancel} to baeChat_executeEvent("conversation-send", {_code})
+	if {_cancel} is true:
+		stop
+
+
+	send "%{_message}%" to {_conversation_starter}
+	send "%{_message}%" to {_conversation_reciever}
+
+	set {_ur} to uuid of {_conversation_reciever}
+	set {bchat::conversations::%{_ur}%::lastrecieved} to {_u}
+	set {bchat::conversations::%{_ur}%::lastrecievedplayer} to {_conversation_starter}
+
+function baeChat_endConversation(p: player):
+	set {_code} to baeChat_generateRandomString()
+	set {bchat::temp::%{_code}%::player} to {_p}
+	set {_cancel} to baeChat_executeEvent("conversation-end", {_code})
+	if {_cancel} is true:
+		stop
+
+	set {_u} to uuid of {_p}
+	send "{@P} You're no longer in a conversation with %{bchat::conversations::%{_u}%::to}%" to {_p}
+	delete {bchat::conversations::%{_u}%::to}
+
+function baeChat_getPlayersGroup(p: player) :: player:
+	set {_u} to uuid of {_p}
+	return {bchat::player::%{_u}%::currentgroup}
+	
+function baeChat_getGroupMembers(groupOwner: player) :: players:
+	return {bchat::groups::%{_groupOwner}%::members::*}
+
+function baeChat_sendGroupAnnouncement(group: player, message: string):
+	set {_members::*} to baeChat_getGroupMembers({_group})
+	loop {_members::*}:
+		send "&a» %{_message}%" to loop-value
+
+function baeChat_groupAutoAssign(groupOwner: player) :: player:
+	set {_members::*} to baeChat_getGroupMembers({_groupOwner})
+	if {_members::1} is {_groupOwner}:
+		set {_newOwner} to {_members::2}
+	else:
+		set {_newOwner} to {_members::1}
+	loop {bchat::groups::%{_groupOwner}%::members::*}:
+		set {bchat::groups::%{_newOwner}%::members::%loop-index%} to loop-value
+	delete {bchat::groups::%{_groupOwner}%::members::*}
+	loop {bchat::groups::%{_newOwner}%::members::*}:
+		set {_u} to uuid of loop-value
+		set {bchat::player::%{_u}%::currentgroup} to {_newOwner}
+	return {_newOwner}
+
+function baeChat_groupLeave(p: player):
+	set {_group} to baeChat_getPlayersGroup({_p})
+	set {_code} to baeChat_generateRandomString()
+	set {bchat::temp::%{_code}%::player} to {_p}
+	set {bchat::temp::%{_code}%::group} to {_group}
+	set {_cancel} to baeChat_executeEvent("group-leave", {_code})
+	if {_cancel} is true:
+		stop
+	if {_group} is set:
+		set {_u} to uuid of {_p}
+		delete {bchat::groups::%{_group}%::members::%{_p}%}
+		delete {bchat::player::%{_u}%::currentgroup}
+		if {_group} is {_p}:
+			set {_members::*} to baeChat_getGroupMembers({_group})
+			if size of {_members::*} is greater than 1:
+				set {_newOwner} to baeChat_groupAutoAssign({_group})
+				baeChat_sendGroupAnnouncement({_newOwner}, "%{_p}% has left the group. %{_newOwner}% is now the group leader")
+				send "{@P} You left your current group" to {_p}
+			else:
+				set {_code} to baeChat_generateRandomString()
+				set {bchat::temp::%{_code}%::player} to {_p}
+				set {bchat::temp::%{_code}%::group} to {_group}
+				set {_cancel} to baeChat_executeEvent("group-disband", {_code})
+				if {_cancel} is true:
+					set {bchat::groups::%{_group}%::members::%{_p}%} to {_p}
+					set {bchat::player::%{_u}%::currentgroup} to {_group}
+					stop
+				baeChat_sendGroupAnnouncement({_group}, "%{_p}% has left the group and the group has been disbanded")
+				loop {bchat::groups::%{_group}%::members::*}:
+					set {_lu} to uuid of loop-value
+					delete {bchat::player::%{_lu}%::currentgroup}
+				delete {bchat::groups::%{_group}%::members::*}
+				send "{@P} Your group has been disbanded" to {_p}
+		else:
+			send "{@P} You left your current group" to {_p}
+			baeChat_sendGroupAnnouncement({_group}, "%{_p}% has left the group")
+	else:
+		send "{@W} You're not in a group to leave" to {_p}
+				
+function baeChat_groupJoin(groupOwner: player, invitedPlayer: player):
+	set {_currentGroup} to baeChat_getPlayersGroup({_invitedPlayer})
+	set {_code} to baeChat_generateRandomString()
+	set {bchat::temp::%{_code}%::player} to {_groupOwner}
+	set {bchat::temp::%{_code}%::invitedplayer} to {_invitedPlayer}
+	set {bchat::temp::%{_code}%::group} to {_groupOwner}
+	set {_cancel} to baeChat_executeEvent("group-join", {_code})
+	if {_cancel} is true:
+		stop
+	if {_currentGroup} is set:
+		baeChat_groupLeave({_invitedPlayer})
+	if {bchat::groups::%{_groupOwner}%::members::%{_invitedPlayer}%} is set:
+		send "{@P} You're already in %{_groupOwner}%'s group!" to {_invitedPlayer}
+		stop
+	delete {bchat::groups::%{_groupOwner}%::invites::%{_invitedPlayer}%}
+	set {_u} to uuid of {_invitedPlayer}
+	set {bchat::groups::%{_groupOwner}%::members::%{_invitedPlayer}%} to {_invitedPlayer}
+	set {bchat::player::%{_u}%::currentgroup} to {_groupOwner}
+	send "{@P} You've joined %{_groupOwner}%'s group!" to {_invitedPlayer}
+	baeChat_sendGroupAnnouncement({_groupOwner}, "%{_invitedPlayer}% has joined the group")
+
+function baeChat_groupInvite(invitingPlayer: player, invitedPlayers: players):
+	set {_groupOwner} to baeChat_getPlayersGroup({_invitingPlayer})
+	if {_groupOwner} is not set:
+		exit
+	loop {_invitedPlayers::*}:
+		if {_groupOwner} is not loop-value:
+			set {_invitedPlayer} to loop-value
+			set {bchat::groups::%{_groupOwner}%::invites::%{_invitedPlayer}%} to {_invitedPlayer}
+			send "{@P} You've been invited to join %{_groupOwner}%'s group! Do /group join %{_groupOwner}% - to join it" to {_invitedPlayer}
+
+#	if {_groupOwner} is not set:
+#		set {_y} to true
+#	else if {_groupOwner} is {_invitingPlayer}:
+#		set {_y} to true
+#	if {_y} is true:
+#		set {bchat::groups::%{_groupOwner}%::invites::%{_invitedPlayer}%} to {_invitedPlayer}
+#		send "{@P} You've been invited to join %{_groupOwner}%'s group! Do /group join %{_groupOwner}% - to join it" to {_invitedPlayer}
+
+function baeChat_groupCreate(p: player, otherPlayers: players):
+	set {_maybeGroup} to baeChat_getPlayersGroup({_p})
+
+	set {_code} to baeChat_generateRandomString()
+	set {bchat::temp::%{_code}%::player} to {_conversation_starter}
+	set {bchat::temp::%{_code}%::otherplayers::*} to {_otherPlayers::*}
+	set {bchat::temp::%{_code}%::group} to {_maybeGroup}
+	set {_cancel} to baeChat_executeEvent("group-create", {_code})
+	if {_cancel} is true:
+		stop
+	if "%{_maybeGroup}%" is not "<none>":
+		baeChat_groupLeave({_p})
+	
+
+	set {_u} to uuid of {_p}
+	set {bchat::groups::%{_p}%::members::%{_p}%} to {_p}
+	set {bchat::player::%{_u}%::currentgroup} to {_p}
+
+	#loop {_otherPlayers::*}:
+	#	baeChat_groupInvite({_p}, loop-value)
+	baeChat_groupInvite({_p}, {_otherPlayers::*})
+
+	#send "{@P} Invited %{_otherPlayers::*}% to your group" to {_p}
+	
+function baeChat_sendGroupMessage(sendingPlayer: player, message: string):
+	set {_msg} to baeChat_parser({_sendingPlayer}, {_message}, {bchat::channels::group::layout})
+	set {_group} to baeChat_getPlayersGroup({_sendingPlayer})
+	set {_members::*} to baeChat_getGroupMembers({_group})
+
+	set {_code} to baeChat_generateRandomString()
+	set {bchat::temp::%{_code}%::player} to {_sendingPlayer}
+	set {bchat::temp::%{_code}%::message} to {_message}
+	set {bchat::temp::%{_code}%::group} to {_group}
+	set {_cancel} to baeChat_executeEvent("group-presend", {_code})
+	if {_cancel} is true:
+		stop
+
+	loop {_members::*}:
+		#send "%{_msg}%" to loop-value
+		set {_code} to baeChat_generateRandomString()
+		set {bchat::temp::%{_code}%::player} to {_sendingPlayer}
+		set {bchat::temp::%{_code}%::reciever} to loop-value
+		set {bchat::temp::%{_code}%::message} to {_message}
+		set {bchat::temp::%{_code}%::group} to {_group}
+		set {_cancel} to baeChat_executeEvent("group-presend", {_code})
+		if {_cancel} is true:
+			stop
+		baeChat_sendMessage({_sendingPlayer}, loop-value, {_msg})
+
+function baeChat_inGroup(p: player) :: boolean:
+	set {_maybeGroup} to baeChat_getPlayersGroup({_p})
+	if {_maybeGroup} is set:
+		return true
+	else:
+		return false
+
+function baeChat_isGroupOwner(p: player) :: boolean:
+	set {_maybeGroup} to baeChat_getPlayersGroup({_p})
+	if {_maybeGroup} is not set:
+		return false
+
+	if {_maybeGroup} is {_p}:
+		return true
+	else:
+		return false
+
+function baeChat_groupkickPlayer(kickingPlayer: player, kickedPlayers: players):
+	if baeChat_isGroupOwner({_kickingPlayer}) is true:
+		set {_group} to baeChat_getPlayersGroup({_kickingPlayer})
+
+		set {_code} to baeChat_generateRandomString()
+		set {bchat::temp::%{_code}%::player} to {_kickingPlayer}
+		set {bchat::temp::%{_code}%::kickedplayers::*} to {_kickedPlayers::*}
+		set {bchat::temp::%{_code}%::group} to {_group}
+		set {_cancel} to baeChat_executeEvent("group-prekick", {_code})
+		if {_cancel} is true:
+			stop
+		loop {_kickedPlayers::*}:
+			if loop-value is not {_kickingPlayer}:
+				set {_kGroup} to baeChat_getPlayersGroup(loop-value)
+				if {_kGroup} is {_group}:
+					set {_code} to baeChat_generateRandomString()
+					set {bchat::temp::%{_code}%::player} to {_kickingPlayer}
+					set {bchat::temp::%{_code}%::kickedplayer} to loop-value
+					set {bchat::temp::%{_code}%::group} to {_group}
+					set {_cancel} to baeChat_executeEvent("group-kick", {_code})
+					if {_cancel} is true:
+						stop
+					set {_u} to uuid of loop-value
+					set {_p} to loop-value
+					delete {bchat::groups::%{_group}%::members::%{_p}%}
+					delete {bchat::player::%{_u}%::currentgroup}
+					send "{@P} You were kicked from the %{_group}%'s group" to {_p}
+					set {_kicked::%{_p}%} to {_p}
+		baeChat_sendGroupAnnouncement({_group}, "%{_kicked::*}% was kicked from the group")
+	else:
+		send "{@W} You're not the group leader, so can't kick other members" to {_kickingPlayer}
+
+function baeChat_argsToPlayers(arg: string) :: players:
+	set {_players::*} to {_arg} split at " "
+	loop {_players::*}:
+		set {_p} to loop-value parsed as player
+		if {_p} is set:
+			set {_returnPlayers::%{_p}%} to {_p}
+	return {_returnPlayers::*}
+
+function baeChat_clearChat(p: player):
+	set {_code} to baeChat_generateRandomString()
+	set {bchat::temp::%{_code}%::player} to {_p}
+	set {_cancel} to baeChat_executeEvent("clearchat-ran", {_code})
+	if {_cancel} is true:
+		stop
+	loop {@clearChatTimes} times:
+		broadcast ""
+	if {@sendClearChatMessage}:
+		set {_msg} to baeChat_parser({_p}, "{@clearChatMessage}", "{@clearChatMessage}")
+		broadcast "%{_msg}%"
+
+on quit:
+	if baeChat_inConversation(player) is true:
+		baeChat_endConversation(player)
+	if baeChat_inGroup(player) is true:
+		baeChat_groupLeave(player)
+
+command /chat [<text>] [<text>] [<text>]:
+	aliases: /bchat, /baechat
+	permission: {@defaultCommandPermission}
+	trigger:
+		if arg 1 is "help":
+			if arg 2 is "@" or "@@":
+				message "{@P} How to use @Chat:"
+				message "{@P} Start a conversation with a player: @player"
+				message "{@P} Create a conversation with the player who last messaged you: @@"
+				message "{@P} Quickly reply to the last message you recieved: @@<message>"
+				message "{@P} Leave a conversation: @"
+			else if arg 2 is "chat":
+				message "{@P} /chat..."
+				if player has permission "{@channelCreatePermission}":
+					message "{@P}"
+					message "{@P}         channel <create|update> <channel>"
+					message "{@P} - create or update a channel"
+					message "{@P}"
+					message "{@P}         channels refresh"
+					message "{@P} - refreshes any default channels (general, group chat...)"
+				if player has permission "{@adminPermission}":
+					message "{@P}"
+					message "{@P}         clear [<channel>]"
+					message "{@P} - clears the provided channel or everyones chat (sends 30 blank messages)"
+					message "{@P}"
+					message "{@P}         player <player>"
+					message "{@P} - get info on a player"
+				message "{@P}"
+				message "{@P}         <leave> [channel|all]"
+				message "{@P} - leave a specific channel, all channels or active channel (if no channel provided)"
+				message "{@P}"
+				message "{@P}         <channel> [leave]"
+				message "{@P} - join that specific channel or leave it"
+				message "{@P}"
+				message "{@P}         <enable/disable/toggle>"
+				message "{@P} - enable or disable chat"
+			else if arg 2 is "pm":
+				message "{@P} /pm..."
+				message "{@P}"
+				message "{@P}         no arguments provided"
+				message "{@P} - stop being in the current conversation you're in"
+				message "{@P}"
+				message "{@P}         <player> [message]"
+				message "{@P} - start a conversation with that player or send a private message (if message is provided)"
+			else if arg 2 is "group":
+				message "{@P} /group..."
+				message "{@P}"
+				message "{@P}         no arguments provided"
+				message "{@P} - get info on the group you're currently in"
+				message "{@P}"
+				message "{@P}         create <player[s]>"
+				message "{@P} - create a group with the players provided"
+				message "{@P}"
+				message "{@P}         join <player>"
+				message "{@P} - join a group which you were invited too"
+				message "{@P}"
+				message "{@P}         invite <player[s]>"
+				message "{@P} - invite players to join your group (only if you're group leader)"
+				message "{@P}"
+				message "{@P}         leave"
+				message "{@P} - leave your current group"
+				message "{@P}"
+				message "{@P}         kick <player[s]>"
+				message "{@P} - removes the provided players from the group (only if you're group leader)"
+			else if arg 2 is "[un]ignore", "[un]block", "unignore", "unblock", "ignore" or "block":
+				message "{@P} /%arg 2%..."
+				message "{@P}"
+				message "{@P}         no arguments provided"
+				message "{@P} - shows your current block list"
+				message "{@P}"
+				message "{@P}         <player>"
+				message "{@P} - block or unblock the provided player"
+			else:
+				message "{@P} Welcome to baeChat's help page!"
+				message "{@P}"
+				message "{@P} To access specific information do /help <keyword>"
+				message "{@P} chat - main command used by baeChat"
+				message "{@P}"
+				message "{@P} @ - @Chat is an easy way to chat with other players"
+				message "{@P}"
+				message "{@P} pm - a command way to start a conversation with other players"
+				message "{@P}"
+				message "{@P} group - talk with multiple players privately"
+				message "{@P}"
+				message "{@P} [un]ignore/[un]block - block or unblock a person from messaging you, seeing your messages and you seeing their messages"
+				message "{@P}"
+				message "{@P} keyword - description"
+		else if arg 1 is "enable":
+			if {bchat::player::%uuid of player%::chatstatus} is "enabled":
+				message "{@P} You already have chat enabled!"
+			else:
+				set {bchat::player::%uuid of player%::chatstatus} to "enabled"
+				message "{@P} Enabled chat"
+		else if arg 1 is "disable":
+			if {bchat::player::%uuid of player%::chatstatus} is "disabled":
+				message "{@P} You already have chat disabled!"
+			else:
+				set {bchat::player::%uuid of player%::chatstatus} to "disabled"
+				message "{@P} Disabled chat"
+		else if arg 1 is "toggle":
+			if {bchat::player::%uuid of player%::chatstatus} is "disabled":
+				set {bchat::player::%uuid of player%::chatstatus} to "enabled"
+				message "{@P} Enabled chat"
+			else:
+				set {bchat::player::%uuid of player%::chatstatus} to "disabled"
+				message "{@P} Disabled chat"
+		else if arg 1 is "channel":
+			if arg 2 is "create":
+				if player has permission "{@channelCreatePermission}":
+					if arg 3 is not set:
+						message "{@P} You must provide a name for the channel you'd like to create"
+					else if {bchat::channels::%arg 3%::name} is set:
+						message "{@P} That channel already exists. If you'd like to make changes just do /chat channel update %arg 3%"
+					else if {bchat::settings::restricted::channels::%arg 3%} is set:
+						message "{@P} Oops! That channel name is restricted. Try a different one"
+					else:
+						set {bchat::channels::%arg 3%::name} to arg 3
+						set {bchat::channels::%arg 3%::creator} to player
+						set {bchat::channels::%arg 3%::createdAt} to now
+						message "{@P} Woo, that's the start of the channel creation done!"
+						message "{@P} As a normal chat message, say what permission you'd like the channel to run on"
+						message "{@P} Use ""none"" for no permission required"
+						set {bchat::player::%uuid of player%::channel-creation::channel} to arg 3
+						set {bchat::player::%uuid of player%::channel-creation::stage} to "permission"
+				else:
+					message "{@P} You don't have permission to access that command set"
+			else if arg 2 is "update":
+				message "{@P} Lets update %arg 3%..."
+				message "{@P} As a normal chat message, say what permission you'd like the channel to run on"
+				message "{@P} Use ""none"" for no permission required"
+				message "{@P} Or use ""same"" for what's already set"
+				set {bchat::player::%uuid of player%::channel-creation::channel} to arg 3
+				set {bchat::player::%uuid of player%::channel-creation::stage} to "permission"
+			else:
+				message "{@P} That's not right... try a different sub-command"
+		else if arg 1 is "channels":
+			if arg 2 is "refresh":
+				loop {bchat::defaultChannels::*}:
+					delete {bchat::channels::%loop-value%::*}
+				baeChat_createDefaultChannels()
+		else if arg 1 is "leave":
+			if arg 2 is not set:
+				baeChat_leaveChannel(player, baeChat_activeChannel(player))
+			else if arg 2 is "all":
+				baeChat_leaveAllChannels(player)
+			else if baeChat_activeChannel(player) is arg 2:
+				baeChat_leaveChannel(player, arg 2)
+			else:
+				message "{@P} Sorry! That sub-command or channel isn't recongised"
+		else if {bchat::channels::%arg 1%::name} is set:
+			set {_channel} to arg 1
+			if arg 2 is set:
+				set {_channel} to "%{_channel}% %arg 2%"
+				if arg 3 is set:
+					set {_channel} to "%{_channel}% %arg 3%"
+			if arg 2 is "leave":
+				if baeChat_activeChannel(player) is "general":
+					message "{@P} You can't leave the main general channel"
+				else if {bchat::player::%uuid of player%::in-channels::%{_channel}%} is not set:
+					message "{@P} You can't leave a channel you're not in..."
+				else:
+					baeChat_leaveChannel(player, {_channel})
+				stop					
+			if {bchat::channels::%{_channel}%::permission} is "none":
+				baeChat_activeChannel(player, {_channel})
+				message "{@P} Welcome to %{_channel}%! Feel free to have a chat"
+			else if player has permission "%{bchat::channels::%{_channel}%::permission}%":
+				baeChat_activeChannel(player, {_channel})
+				message "{@P} Welcome to %{_channel}%! Feel free to have a chat"
+			else:
+				message "{@P} Sorry! You don't have permission to access that channel"
+		else:
+			make player execute command "baechat help"
+
+command /pm [<text>] [<text>]:
+	trigger:
+		if arg 1 is set:
+			set {_otherPlayer} to arg 1 parsed as player
+			if {_otherPlayer} is set:
+				if arg 2 is set:
+					baeChat_sendConversationMessage(player, arg 2, {_otherPlayer})
+				else:
+					baeChat_startConversation(player, {_otherPlayer})
+			else:
+				message "{@W} Sorry, but that player isn't online"
+		else if baeChat_inConversation(player) is true:
+			baeChat_endConversation(player)
+		else:
+			message "{@W} You're not in a conversation right now"
+
+command /block [<text>]:
+	aliases: /ignore,
+	trigger:
+		if arg 1 is set:
+			set {_p} to arg 1 parsed as player
+			if {_p} is not set:
+				set {_p} to arg 1
+			set {_u} to uuid of {_p}
+			if {_u} is not set:
+				message "{@P} Can't find that player..."
+				stop
+			set {bchat::player::%uuid of player%::blocklist::%{_u}%} to {_u}
+			message "{@P} Successfully blocked %{_p}%. You won't see their messages, they can't see yours"
+		else if size of {bchat::player::%uuid of player%::blocklist::*} is greater than 0:
+			message "{@P} Here is your block list:"
+			loop {bchat::player::%uuid of player%::blocklist::*}:
+				message "{@P} %loop-value%"
+		else:
+			message "{@P} You haven't blocked anyone"
+
+command /unblock [<text>]:
+	aliases: /unignore,
+	trigger:
+		if arg 1 is set:
+			set {_p} to arg 1 parsed as player
+			if {_p} is not set:
+				set {_p} to arg 1
+			set {_u} to uuid of {_p}
+			if {_u} is not set:
+				message "{@P} Can't find that player..."
+				stop
+			delete {bchat::player::%uuid of player%::blocklist::%{_u}%}
+			message "{@P} Successfully unblocked %{_p}%"
+		else:
+			message "{@W} You must provide a username to unblock"
+
+
+
+command /group [<text>] [<text>]:
+	trigger:
+		if arg 1 is "join":
+			if arg 2 is set:
+				set {_p} to arg 2 parsed as player
+				if {_p} is set:
+					if {bchat::groups::%{_p}%::invites::%player%} is set:
+						baeChat_groupJoin({_p}, player)
+					else:
+						message "{@W} You haven't been invited to that group"
+				else:
+					message "{@W} You haven't been invited to that group"
+			else:
+				message "{@W} Please provide a group name to join"
+		else if arg 1 is "leave":
+			baeChat_groupLeave(player)
+		else if arg 1 is "create":
+			set {_players::*} to baeChat_argsToPlayers(arg 2)
+			if size of {_players::*} is 0:
+				message "{@W} The players you provided aren't valid"
+			else:
+				baeChat_groupCreate(player, {_players::*})
+				message "{@P} Invited %{_players::*}% to join your group"
+		else if arg 1 is "invite":
+			if baeChat_isGroupOwner(player) is true:
+				set {_players::*} to baeChat_argsToPlayers(arg 2)
+				if size of {_players::*} is 0:
+					message "{@W} The players you provided aren't valid"
+				else:
+					baeChat_groupInvite(player, {_players::*})
+					message "{@P} Invited %{_players::*}% to join your group"
+			else:
+				send "{@W} You're not able to invite people to this group"
+		else if arg 1 is "kick":
+			if arg 2 is set:
+				if baeChat_isGroupOwner(player) is true:
+					set {_players::*} to baeChat_argsToPlayers(arg 2)
+					if size of {_players::*} is 0:
+						message "{@W} The players you provided aren't valid"
+					else:
+						baeChat_groupkickPlayer(player, {_players::*})
+						message "{@P} Kicked %{_players::*}% from your group"
+				else:
+					send "{@W} You're not able to invite people to this group"
+		else if baeChat_inGroup(player) is true:
+			set {_group} to baeChat_getPlayersGroup(player)
+			message "{@P} Group leader: %{_group}%"
+			message "{@P} Group members: %baeChat_getGroupMembers({_group})%"
+		else:
+			message "{@W} That sub-command isn't supported..."
+#
+# Chat channel priority:
+#
+#	[1] channel creation/updating
+#	[2] private messaging
+#	[3] group chat
+#	[4] processed into chat channel
+#
+on chat:
+	cancel event
+	# [1] Handle channel creation
+	if {bchat::player::%uuid of player%::channel-creation::channel} is set:
+		set {_channel} to {bchat::player::%uuid of player%::channel-creation::channel}
+		if {bchat::player::%uuid of player%::channel-creation::stage} is "permission":
+			if message is "same":
+				if {bchat::channels::%{_channel}%::permission} is not set:
+					message "{@P} There is no permission currently set for %{_channel}%. Please enter a permission"
+					message "{@P} You can use ""none"" for no permission required"
+					stop
+			else:
+				set {bchat::channels::%{_channel}%::permission} to message
+			message "{@P} That's the permission set! Now just do the same for the chat layout"
+			message "{@P} Use ""default"" for the default chat layout"
+			message "{@P} Or use ""same"" for what's already set (if there is a layout set)"
+			set {bchat::player::%uuid of player%::channel-creation::stage} to "layout"
+		else if {bchat::player::%uuid of player%::channel-creation::stage} is "layout":
+			set {bchat::channels::%{_channel}%::layout} to message
+			message "{@P} All done! If you'd like to make any changes just do /chat channel update %{_channel}%"
+			message "{@P} The permission required is %{bchat::channels::%{_channel}%::permission}%"
+			message "{@P} And it uses this chat layout: %uncoloured {bchat::channels::%{_channel}%::layout}%"
+			message "{@P} Here's an example message for you:"
+			set {_last_active} to baeChat_activeChannel(player)
+			baeChat_movePlayer(player, {_channel})
+			set {_msg} to baeChat_parser(player, "this is just an example message")
+			message "%{_msg}%"
+			baeChat_movePlayer(player, {_last_active})
+			delete {bchat::player::%uuid of player%::channel-creation::channel}
+			delete {bchat::player::%uuid of player%::channel-creation::stage}
+		else:
+			delete {bchat::player::%uuid of player%::channel-creation::channel}
+			delete {bchat::player::%uuid of player%::channel-creation::stage}
+			message "{@P} That stage of channel creation isn't recongised... the variables have been unset. Please try again!"
+		stop
+	# [2] Private messaging via @
+	if message is "@@":
+		if {bchat::conversations::%uuid of player%::lastrecievedplayer} is set:
+			baeChat_startConversation(player, {bchat::conversations::%uuid of player%::lastrecievedplayer})
+		else:
+			message "{@P} You haven't recieved any messages to start a conversation"
+		stop
+	set {_checkAt} to first character of message
+	if {_checkAt} is "@":
+		set {_doubleAt} to subtext of message from 1 to 2
+		if {_doubleAt} is "@@":
+			if {bchat::conversations::%uuid of player%::lastrecievedplayer} is not set:
+				message "{@P} You haven't recieved any messages to start a conversation"
+				stop
+
+			set {_allSplit::*} to message split at " "
+			set {_atSplit::*} to {_allSplit::1} split at "@@"
+			if {_atSplit::2} is not set:
+				baeChat_startConversation(player, {bchat::conversations::%uuid of player%::lastrecievedplayer})
+			else:
+				set {_msg} to the subtext of message from 3 to (the length of message)
+				baeChat_sendConversationMessage(player, {_msg}, {bchat::conversations::%uuid of player%::lastrecievedplayer})
+		else:
+			set {_allSplit::*} to message split at " "
+			set {_atSplit::*} to {_allSplit::1} split at "@"
+			if {_atSplit::2} is "":
+				if baeChat_inConversation(player) is true:
+					baeChat_endConversation(player)
+				else:
+					message "{@P} You're not in a conversation to end"
+				stop
+
+			set {_otherPlayer} to {_atSplit::2} parsed as player
+			if {_otherPlayer} is set:
+				if {_allSplit::2} is set:
+					delete {_allSplit::1}
+					set {_msg} to join {_allSplit::*} with " "
+					baeChat_sendConversationMessage(player, {_msg}, {_otherPlayer})
+				else:
+					baeChat_startConversation(player, {_otherPlayer})
+			else:
+				message "{@W} Sorry, but that player isn't online"
+		stop
+	# [2] Player is in a private conversation
+	if baeChat_inConversation(player) is true:
+		baeChat_sendConversationMessage(player, message)
+		stop
+
+	# [3] Group chat messaging
+	if baeChat_inGroup(player) is true:
+		baeChat_sendGroupMessage(player, message)
+		stop
+
+	# [4] The message is nothing else so just show to everyone as intended
+	set {_message} to baeChat_parser(player, message)
+	set {_channel} to baeChat_activeChannel(player)
+
+	set {_code} to baeChat_generateRandomString()
+	set {bchat::temp::%{_code}%::player} to player
+	set {bchat::temp::%{_code}%::message} to message
+	set {bchat::temp::%{_code}%::parsedmessage} to {_message}
+	set {bchat::temp::%{_code}%::channel} to {_channel}
+	set {_cancel} to baeChat_executeEvent("chat-presend", {_code})
+	if {_cancel} is true:
+		stop
+	loop all players:
+		if {bchat::player::%uuid of loop-player%::in-channels::%{_channel}%} is set:
+			#send "%{_message}%" to loop-player
+			set {_code} to baeChat_generateRandomString()
+			set {bchat::temp::%{_code}%::player} to player
+			set {bchat::temp::%{_code}%::reciever} to loop-player
+			set {bchat::temp::%{_code}%::message} to message
+			set {bchat::temp::%{_code}%::parsedmessage} to {_message}
+			set {bchat::temp::%{_code}%::channel} to {_channel}
+			set {_cancel} to baeChat_executeEvent("chat-send", {_code})
+			if {_cancel} is true:
+				stop
+			baeChat_sendMessage(player, loop-player, {_message})
