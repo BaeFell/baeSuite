@@ -180,7 +180,16 @@ on script load:
 	baeChat_setupAPI()
 	baeChat_prepareRandomStringLetters()
 
+function baeChat_channelExists(channel: text) :: boolean:
+	if {bchat::channels::%{_channel}%::name} is set:
+		return true
+	else:
+		return false
+
 on join:
+	loop {bchat::player::%uuid of player%::in-channels::*}:
+		if baeChat_channelExists(loop-value) is false:
+			delete {bchat::player::%uuid of player%::in-channels::%loop-value%}
 	if {bchat::player::%uuid of player%::active-channel} is not set:
 		set {bchat::player::%uuid of player%::active-channel} to "general"
 	if size of {bchat::player::%uuid of player%::in-channels::*} is 0:
@@ -248,12 +257,6 @@ function baeChat_leaveChannel(p: player, channel: text):
 function baeChat_inChannel(p: player, channel: string) :: boolean:
 	set {_u} to uuid of {_p}
 	if {bchat::player::%{_u}%::in-channels::%{_channel}%} is set:
-		return true
-	else:
-		return false
-
-function baeChat_channelExists(channel: text) :: boolean:
-	if {bchat::channels::%{_channel}%::name} is set:
 		return true
 	else:
 		return false
