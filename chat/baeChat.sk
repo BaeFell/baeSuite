@@ -71,7 +71,7 @@ function baeChat_setupAPI(unused: string = none):
 	#							the event to listen too 											name of the script for organisation
 	#													command ran as console 								just putting 'script' works too
 	# baeChat_registerEventListener("chat", "baechat_console <<event>> <<sender>> <<reciever>> <<message>>", "baeChat")
-	set {bchat::api::events::chat-presend} to "chat-send"
+	set {bchat::api::events::chat-presend} to "chat-presend"
 	set {bchat::api::events::chat-send} to "chat-send"
 	set {bchat::api::events::conversation-start} to "conversation-start"
 	set {bchat::api::events::conversation-send} to "conversation-send"
@@ -155,6 +155,7 @@ function baeChat_executeEvent(event: string, code: string) :: boolean:
 		loop {bchat::api::listeners::%{_event}%::*}:
 			set {bchat::temp::%{_code}%::cancel} to false
 			set {bchat::temp::%{_code}%::command} to loop-value
+			set {bchat::temp::%{_code}%::code} to {_code}
 			set {_cmd} to baeChat_APICommandPrepare({_code})
 			execute console command "%{_cmd}%"
 			set {_cancel} to {bchat::temp::%{_code}%::cancel}
